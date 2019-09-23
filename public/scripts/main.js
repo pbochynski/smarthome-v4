@@ -45,25 +45,17 @@ function aliasFor(id) {
 function minTemp(sensors) {
   var min = 100;
   for (var id in sensors) {
-    if (sensors[id].t<min) {
-      min=sensors[id].t;
+    if (sensors[id].t < min) {
+      min = sensors[id].t;
     }
   }
-  return min<100 ? min.toFixed(1): "--";
+  return min < 100 ? min.toFixed(1) : "--";
 }
 
 function sensorTable(sensors) {
   var txt = "";
   for (var id in sensors) {
-    txt +=
-      "<tr>" +
-      '<td class="mdl-data-table__cell--non-numeric">' +
-      aliasFor(id) +
-      "</td>" +
-      "<td>" +
-      sensors[id].t +
-      "</td>" +
-      "</tr>";
+    txt += "<tr>" + '<td class="mdl-data-table__cell--non-numeric">' + aliasFor(id) + "</td>" + "<td>" + sensors[id].t + "</td>" + "</tr>";
   }
   return txt;
 }
@@ -88,28 +80,28 @@ function startDatabaseQueries() {
         console.log("id: %s", id);
         if (id == deviceId.value) {
           sensorRows.innerHTML = sensorTable(data[id].sensors);
-          lastUpdate.innerText = "Last updated: "+new Date(data[id].timestamp).toLocaleTimeString();
-          document.getElementById("current").innerText=minTemp(data[id].sensors);
+          lastUpdate.innerText = "Last updated: " + new Date(data[id].timestamp).toLocaleTimeString();
+          document.getElementById("current").innerText = minTemp(data[id].sensors);
           document.getElementById("fire").style.display = data[id].sensors[id].relay ? "" : "none";
         }
       }
     });
   };
   var fetchAliases = function(aliasesRef) {
-    aliasesRef.on("value", snapshot =>{
+    aliasesRef.on("value", snapshot => {
       aliases = snapshot.val();
-    })
-  }
+    });
+  };
   var fetchConfig = function(configRef) {
-    configRef.on("value", snapshot =>{
+    configRef.on("value", snapshot => {
       let config = snapshot.val();
       let id = deviceId.value;
-      if (deviceId.value && config[id] && config[id].t){
+      if (deviceId.value && config[id] && config[id].t) {
         slider.MaterialSlider.change(config[id].t);
         showMessage();
       }
-    })
-  }
+    });
+  };
   var fetchPresets = function(presetRef) {
     presetRef.on("value", snapshot => {
       let data = snapshot.val();
@@ -120,16 +112,22 @@ function startDatabaseQueries() {
         let style = data[id].style || "mdl-button--colored";
         let t = data[id].t;
         let label = data[id].label || id;
-        html+='&nbsp;<button class="mdl-button mdl-js-button mdl-button--raised '+ style + '" onclick="setPreset('+ t +')">'+ label +'</button>&nbsp;'
+        html +=
+          '&nbsp;<button class="mdl-button mdl-js-button mdl-button--raised ' +
+          style +
+          '" onclick="setPreset(' +
+          t +
+          ')">' +
+          label +
+          "</button>&nbsp;";
       }
-      html+='</p>';
+      html += "</p>";
       presets.innerHTML = html;
       if (componentHandler) {
         componentHandler.upgradeElements(presets);
       }
-
     });
-  }
+  };
   fetchAliases(aliasesRef);
   fetchConfig(configRef);
   fetchDevices(devicesRef);
@@ -159,7 +157,6 @@ function writeUserData(userId, name, email, imageUrl) {
  * Cleanups the UI and removes all Firebase listeners.
  */
 function cleanupUi() {
-
   // Stop all currently listening Firebase listeners.
   listeningFirebaseRefs.forEach(function(ref) {
     ref.off();
@@ -208,6 +205,71 @@ function showSection(sectionElement) {
   }
 }
 
+function getChartData() {
+  fetch("https://us-central1-smarthome-181619.cloudfunctions.net/getReportData").then(async response => {
+    let report = await response.json();
+    let sensors = sensorList(report.data);
+    document.getElementById("charts").innerHTML = "";
+    for (let i in sensors) {
+      let chartNode = document.createElement("canvas");
+      document.getElementById("charts").appendChild(chartNode);
+      drawChart(chartNode, report.data, sensors[i]);
+    }
+  });
+}
+
+function sensorList(report) {
+  let list = {};
+  report.forEach(r => {
+    list[r.id] = true;
+  });
+  return Object.keys(list);
+}
+
+function drawChart(chartNode, report, sensor) {
+  var ctx = chartNode.getContext("2d");
+
+  let data = {
+    labels: [],
+    datasets: [
+      { label: "min", fill: false, borderColor: "blue", data: [] },
+      { label: "max", fill: false, borderColor: "red", data: [] },
+      { label: "avg", fill: false, borderColor: "green", data: [] }
+    ]
+  };
+  let options = {
+    title: {
+      display: true,
+      text: aliasFor(sensor)
+    },
+    scales: {
+      xAxes: [{
+          ticks: {
+              display: true //this will remove only the label
+          }
+      }]
+    },
+    legend : {display: false}
+  };
+  report.forEach(r => {
+    if (r.id == sensor) {
+      data.labels.push(new Date(r.t.value).toLocaleTimeString());
+      data.datasets[0].data.push(r.min_temp);
+      data.datasets[1].data.push(r.max_temp);
+      data.datasets[2].data.push(r.avg_temp);
+    }
+  });
+  var chart = new Chart(ctx, {
+    // The type of chart we want to create
+    type: "line",
+    // The data for our dataset
+    data,
+
+    // Configuration options go here
+    options
+  });
+}
+
 // Bindings on load.
 window.addEventListener(
   "load",
@@ -227,7 +289,7 @@ window.addEventListener(
     firebase.auth().onAuthStateChanged(onAuthStateChanged);
     slider.addEventListener("input", showMessage);
     slider.addEventListener("change", setTemp);
-
+    getChartData();
   },
   false
 );

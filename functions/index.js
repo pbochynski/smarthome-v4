@@ -74,15 +74,16 @@ async function query(req, res) {
   const table = "smarthome-181619.telemetry.sensors"; //`${projectId}.${datasetName}.${tableName}`;
   const query = `
     SELECT 
-      TIMESTAMP_TRUNC(data.time, HOUR, 'America/Cuiaba') data_hora,
+      id,
+      TIMESTAMP_TRUNC(data.time, HOUR, 'America/Cuiaba') t,
       avg(data.t) as avg_temp,
       min(data.t) as min_temp,
       max(data.t) as max_temp,
       count(*) as data_points      
     FROM \`${table}\` data
-    WHERE data.time between timestamp_sub(current_timestamp, INTERVAL 7 DAY) and current_timestamp()
-    group by data_hora
-    order by data_hora
+    WHERE data.time between timestamp_sub(current_timestamp, INTERVAL 1 DAY) and current_timestamp()
+    group by id, t
+    order by t
   `;
 
   // For all options, see https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query
