@@ -74,10 +74,8 @@ function startDatabaseQueries() {
   var fetchDevices = function(devicesRef) {
     devicesRef.on("value", snapshot => {
       var data = snapshot.val();
-      console.log("Bla: " + JSON.stringify(data));
 
       for (var id in data) {
-        console.log("id: %s", id);
         if (id == deviceId.value) {
           sensorRows.innerHTML = sensorTable(data[id].sensors);
           lastUpdate.innerText = "Last updated: " + new Date(data[id].timestamp).toLocaleTimeString();
@@ -210,6 +208,7 @@ function getChartData() {
     let report = await response.json();
     let sensors = sensorList(report.data);
     document.getElementById("charts").innerHTML = "";
+
     for (let i in sensors) {
       let chartNode = document.createElement("canvas");
       document.getElementById("charts").appendChild(chartNode);
@@ -232,9 +231,9 @@ function drawChart(chartNode, report, sensor) {
   let data = {
     labels: [],
     datasets: [
-      { label: "min", fill: false, borderColor: "blue", data: [] },
-      { label: "max", fill: false, borderColor: "red", data: [] },
-      { label: "avg", fill: false, borderColor: "green", data: [] }
+      { label: "min", fill: false, showLine: true, borderColor: "#00bcd6", data: [] },
+      { label: "avg", fill: false, borderColor: "#48b04b", data: [] },
+      { label: "max", fill: false, showLine: true, borderColor: "#ff5605", data: [] }
     ]
   };
   let options = {
@@ -243,31 +242,26 @@ function drawChart(chartNode, report, sensor) {
       text: aliasFor(sensor)
     },
     scales: {
-      xAxes: [{
+      xAxes: [
+        {
           ticks: {
-              display: true //this will remove only the label
+            display: true //this will remove only the label
           }
-      }]
+        }
+      ]
     },
-    legend : {display: false}
+    legend: { display: false },
+    responsive: true
   };
   report.forEach(r => {
     if (r.id == sensor) {
       data.labels.push(new Date(r.t.value).toLocaleTimeString());
       data.datasets[0].data.push(r.min_temp);
-      data.datasets[1].data.push(r.max_temp);
-      data.datasets[2].data.push(r.avg_temp);
+      data.datasets[1].data.push(r.avg_temp);
+      data.datasets[2].data.push(r.max_temp);
     }
   });
-  var chart = new Chart(ctx, {
-    // The type of chart we want to create
-    type: "line",
-    // The data for our dataset
-    data,
-
-    // Configuration options go here
-    options
-  });
+  new Chart(ctx, { type: "line", data, options });
 }
 
 // Bindings on load.
@@ -293,16 +287,24 @@ window.addEventListener(
   },
   false
 );
+function switchThermostat() {
+  let on = document.getElementById("switch").checked;
 
+  document.getElementById("switch-label").innerText = on ? "on" : "off";
+  let nodes = document.getElementsByClassName("on-off");
+  for (let i = 0; i < nodes.length; ++i) {
+    nodes[i].style.display = on ? "" : "none";
+  }
+
+  writeConfig(deviceId.value, { mode: on ? "auto" : "off", t: parseFloat(slider.value) });
+}
 function setPreset(t) {
-  console.log("Device: %s, temp: %s", deviceId.value, t);
   if (deviceId.value) {
     writeConfig(deviceId.value, { mode: "auto", t: parseFloat(t) });
   }
 }
 
 function setTemp() {
-  console.log("Device: %s, temp: %s", deviceId.value, slider.value);
   if (deviceId.value) {
     writeConfig(deviceId.value, { mode: "auto", t: parseFloat(slider.value) });
   }
