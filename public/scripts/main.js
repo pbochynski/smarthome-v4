@@ -16,7 +16,6 @@
 "use strict";
 
 // Shortcuts to DOM Elements.
-var messageForm = document.getElementById("message-form");
 var thermostatInput = document.getElementById("thermostat");
 var deviceId = document.getElementById("deviceId");
 var sensorRows = document.getElementById("sensorRows");
@@ -27,6 +26,7 @@ var splashPage = document.getElementById("page-splash");
 var lastUpdate = document.getElementById("last-update");
 var aliases = {};
 var listeningFirebaseRefs = [];
+var lastTimestamp = null;
 
 /**
  * Saves a new post to the Firebase DB.
@@ -78,7 +78,7 @@ function startDatabaseQueries() {
       for (var id in data) {
         if (id == deviceId.value) {
           sensorRows.innerHTML = sensorTable(data[id].sensors);
-          lastUpdate.innerText = "Last updated: " + new Date(data[id].timestamp).toLocaleTimeString();
+          lastTimestamp = new Date(data[id].timestamp).getTime();
           document.getElementById("current").innerText = minTemp(data[id].sensors);
           document.getElementById("fire").style.display = data[id].sensors[id].relay ? "" : "none";
         }
@@ -88,6 +88,7 @@ function startDatabaseQueries() {
   var fetchAliases = function(aliasesRef) {
     aliasesRef.on("value", snapshot => {
       aliases = snapshot.val();
+      getChartData();
     });
   };
   var fetchConfig = function(configRef) {
@@ -134,7 +135,12 @@ function startDatabaseQueries() {
   // Keep track of all Firebase refs we are listening to.
   listeningFirebaseRefs.push(devicesRef);
 }
+setInterval(()=>{
+  if (lastTimestamp) {
+    lastUpdate.innerText = "Last update: " + Math.round((new Date().getTime()-lastTimestamp)/1000) +" seconds ago";
+  }
 
+}, 1000);
 /**
  * Writes the user's data to the database.
  */
@@ -191,17 +197,6 @@ function onAuthStateChanged(user) {
   }
 }
 
-/**
- * Displays the given section element and changes styling of the given button.
- */
-function showSection(sectionElement) {
-  devicesSection.style.display = "none";
-  addPost.style.display = "none";
-
-  if (sectionElement) {
-    sectionElement.style.display = "block";
-  }
-}
 
 function getChartData() {
   fetch("https://us-central1-smarthome-181619.cloudfunctions.net/getReportData").then(async response => {
@@ -271,7 +266,7 @@ window.addEventListener(
     // Bind Sign in button.
     signInButton.addEventListener("click", function() {
       var provider = new firebase.auth.GoogleAuthProvider();
-      firebase.auth().signInWithPopup(provider);
+      firebase.auth().signInWithRedirect(provider);
     });
 
     // Bind Sign out button.
@@ -283,10 +278,11 @@ window.addEventListener(
     firebase.auth().onAuthStateChanged(onAuthStateChanged);
     slider.addEventListener("input", showMessage);
     slider.addEventListener("change", setTemp);
-    getChartData();
+    
   },
   false
 );
+
 function switchThermostat() {
   let on = document.getElementById("switch").checked;
 
