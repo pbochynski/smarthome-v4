@@ -35,6 +35,8 @@ exports.receiveTelemetry = functions.pubsub
         ttl: payload[id].ttl,
         t: payload[id].t,
         relay: payload[id].relay,
+        mode: payload[id].mode,
+        target: payload[id].target,
         time: context.timestamp
       });
     }

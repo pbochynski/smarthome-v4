@@ -55,7 +55,11 @@ function minTemp(sensors) {
 function sensorTable(sensors) {
   var txt = "";
   for (var id in sensors) {
-    txt += "<tr>" + '<td class="mdl-data-table__cell--non-numeric">' + aliasFor(id) + "</td>" + "<td>" + sensors[id].t + "</td>" + "</tr>";
+    txt += "<tr>" + '<td class="mdl-data-table__cell--non-numeric">' + aliasFor(id) + "</td>" 
+    + "<td>" + sensors[id].t + "</td>" 
+    + "<td>" + (sensors[id].target || "")  + "</td>"     
+    + "<td>" + (sensors[id].relay ? "on" :"off")  + "</td>"     
+    + "</tr>";
   }
   return txt;
 }
@@ -63,9 +67,13 @@ function sensorTable(sensors) {
  * Starts listening for new posts and populates posts lists.
  */
 
+function getMyDevices() {
+  var devicesRef = firebase.database().ref("users/");
+
+}
+
 function startDatabaseQueries() {
   // [START my_top_posts_query]
-  var myUserId = firebase.auth().currentUser.uid;
   var devicesRef = firebase.database().ref("devices");
   var aliasesRef = firebase.database().ref("aliases");
   var configRef = firebase.database().ref("config");
@@ -81,6 +89,7 @@ function startDatabaseQueries() {
           lastTimestamp = new Date(data[id].timestamp).getTime();
           document.getElementById("current").innerText = minTemp(data[id].sensors);
           document.getElementById("fire").style.display = data[id].sensors[id].relay ? "" : "none";
+          document.getElementById("sync").style.display = data[id].sensors[id].target == slider.value ? "none" : "";
         }
       }
     });
@@ -135,6 +144,7 @@ function startDatabaseQueries() {
   // Keep track of all Firebase refs we are listening to.
   listeningFirebaseRefs.push(devicesRef);
 }
+
 setInterval(()=>{
   if (lastTimestamp) {
     lastUpdate.innerText = "Last update: " + Math.round((new Date().getTime()-lastTimestamp)/1000) +" seconds ago";
@@ -279,6 +289,7 @@ window.addEventListener(
     slider.addEventListener("input", showMessage);
     slider.addEventListener("change", setTemp);
     
+    toggleAdminView();
   },
   false
 );
@@ -294,6 +305,15 @@ function switchThermostat() {
 
   writeConfig(deviceId.value, { mode: on ? "auto" : "off", t: parseFloat(slider.value) });
 }
+
+function toggleAdminView() {
+  let nodes = document.getElementsByClassName("admin-view");
+  let adminOn = window.location.hash == "#admin"
+  for (let i = 0; i < nodes.length; ++i) {
+    nodes[i].style.display = adminOn ? "" : "none";
+  }
+}
+
 function setPreset(t) {
   if (deviceId.value) {
     writeConfig(deviceId.value, { mode: "auto", t: parseFloat(t) });

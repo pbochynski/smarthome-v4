@@ -158,6 +158,8 @@ Timer.set(
   function() {
     let data = readTemp();
     data.relay = thermostat.relay;
+    data.mode = thermostat.mode;
+    data.target = thermostat.t;
     let result = RPC.call(RPC.LOCAL, "State", data, function() {}, null);
     print("Local state update:", JSON.stringify(data));
     if (Cfg.get("gcp.enable")) {
